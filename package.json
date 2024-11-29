@@ -7,11 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "formidable": "^2.0.1",
-    "raw-body": "^2.4.1"
+    "formidable": "^2.0.1"
   },
   "devDependencies": {},
-"engines": {
-  "node": "14.x || 22.x"
+  "engines": {
+    "node": "14.x || 22.x"
+  }
 }
-
