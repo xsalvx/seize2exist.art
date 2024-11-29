@@ -10,6 +10,7 @@
         button { padding: 10px 20px; cursor: pointer; }
         .note { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
         img { max-width: 200px; }
+        .error { color: red; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -38,45 +39,78 @@
         const noteText = document.getElementById("noteText").value;
         const imageFile = document.getElementById("imageUpload").files[0];
 
-        // Prepare form data to send to Netlify Function
-        const formData = new FormData();
-        formData.append("noteText", noteText);
-        if (imageFile) formData.append("image", imageFile);
+        if (!noteText.trim()) {
+            alert("Please type a note before saving.");
+            return;
+        }
 
-        // Send data to the Netlify function
-        const response = await fetch("/.netlify/functions/saveNote", {
-            method: "POST",
-            body: formData,
-        });
+        try {
+            // Prepare form data to send to Netlify Function
+            const formData = new FormData();
+            formData.append("noteText", noteText);
+            if (imageFile) formData.append("image", imageFile);
 
-        const result = await response.json();
-        if (result.message === "Note saved successfully!") {
-            alert("Note saved!");
-            loadNotes(); // Reload the list of notes
-        } else {
-            alert("Error saving note");
+            // Send data to the Netlify function
+            const response = await fetch("/.netlify/functions/saveNote", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to save note: HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result.message === "Note saved successfully!") {
+                alert("Note saved!");
+                document.getElementById("noteText").value = ""; // Clear the form
+                document.getElementById("imageUpload").value = ""; // Clear the file input
+                loadNotes(); // Reload the list of notes
+            } else {
+                alert("Error saving note: " + result.error);
+            }
+        } catch (error) {
+            console.error("Error saving note:", error);
+            alert("Failed to save note. Please try again later.");
         }
     });
 
     // Load existing notes from the server
     async function loadNotes() {
-        const response = await fetch("/.netlify/functions/getNotes");
-        const notes = await response.json();
         const notesContainer = document.getElementById("notesContainer");
 
-        // Clear existing notes
-        notesContainer.innerHTML = "";
+        try {
+            const response = await fetch("/.netlify/functions/getNotes");
 
-        // Display notes
-        notes.forEach(note => {
-            const noteElement = document.createElement("div");
-            noteElement.classList.add("note");
-            noteElement.innerHTML = `
-                <p>${note.text}</p>
-                ${note.image ? `<img src="${note.image}" alt="Image">` : ""}
+            if (!response.ok) {
+                throw new Error(`Failed to load notes: HTTP ${response.status}`);
+            }
+
+            const notes = await response.json();
+
+            if (!Array.isArray(notes)) {
+                throw new Error("Invalid notes data received.");
+            }
+
+            // Clear existing notes
+            notesContainer.innerHTML = "";
+
+            // Display notes
+            notes.forEach(note => {
+                const noteElement = document.createElement("div");
+                noteElement.classList.add("note");
+                noteElement.innerHTML = `
+                    <p>${note.text}</p>
+                    ${note.image ? `<img src="${note.image}" alt="Image">` : ""}
+                `;
+                notesContainer.appendChild(noteElement);
+            });
+        } catch (error) {
+            console.error("Error loading notes:", error);
+            notesContainer.innerHTML = `
+                <p class="error">Failed to load notes. Please try again later.</p>
             `;
-            notesContainer.appendChild(noteElement);
-        });
+        }
     }
 
     // Initial load of notes
