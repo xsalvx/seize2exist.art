@@ -1,0 +1,8 @@
+/your-project
+  /public
+    /images
+  /netlify
+  /functions
+  /data
+  index.html
+  saveNote.js
