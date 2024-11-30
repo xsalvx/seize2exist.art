@@ -5,17 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seize2Exist</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        textarea { width: 100%; height: 150px; padding: 10px; margin-bottom: 10px; }
-        button { padding: 10px 20px; cursor: pointer; }
-        .note { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
-        img { max-width: 200px; }
-        .error { color: red; font-weight: bold; margin-top: 10px; }
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2.5em;
+            color: red;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            border: 1px solid #333;
+        }
+
+        input[type="file"] {
+            color: #e0e0e0;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #333;
+            color: red;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background-color: red;
+            color: #121212;
+        }
+
+        .note {
+            border: 1px solid #444;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #1e1e1e;
+        }
+
+        img {
+            max-width: 200px;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-<h1>Welcome to Seize2Exist</h1>
+<h1>Seize2Exist</h1>
 
 <!-- Form to submit text and images -->
 <form id="noteForm">
@@ -26,31 +81,39 @@
     <button type="submit">Save Note</button>
 </form>
 
-<h2>Notes</h2>
+<div id="errorMessage" class="error"></div>
+
+<h2 style="color: red; font-family: 'Courier New', Courier, monospace;">Notes</h2>
 <div id="notesContainer">
     <!-- Display saved notes here -->
 </div>
 
 <script>
+    // Helper to display error messages
+    function displayError(message) {
+        const errorDiv = document.getElementById("errorMessage");
+        errorDiv.textContent = message;
+    }
+
     // Handle form submission
     document.getElementById("noteForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-        
+        displayError(""); // Clear any previous errors
+
         const noteText = document.getElementById("noteText").value;
         const imageFile = document.getElementById("imageUpload").files[0];
 
-        if (!noteText.trim()) {
-            alert("Please type a note before saving.");
+        if (!noteText) {
+            displayError("Note text cannot be empty.");
             return;
         }
 
-        try {
-            // Prepare form data to send to Netlify Function
-            const formData = new FormData();
-            formData.append("noteText", noteText);
-            if (imageFile) formData.append("image", imageFile);
+        // Prepare form data to send to Netlify Function
+        const formData = new FormData();
+        formData.append("noteText", noteText);
+        if (imageFile) formData.append("image", imageFile);
 
-            // Send data to the Netlify function
+        try {
             const response = await fetch("/.netlify/functions/saveNote", {
                 method: "POST",
                 body: formData,
@@ -63,34 +126,27 @@
             const result = await response.json();
             if (result.message === "Note saved successfully!") {
                 alert("Note saved!");
-                document.getElementById("noteText").value = ""; // Clear the form
-                document.getElementById("imageUpload").value = ""; // Clear the file input
                 loadNotes(); // Reload the list of notes
             } else {
-                alert("Error saving note: " + result.error);
+                displayError("Error saving note. Please try again.");
             }
         } catch (error) {
-            console.error("Error saving note:", error);
-            alert("Failed to save note. Please try again later.");
+            console.error(error);
+            displayError(`Error saving note: ${error.message}`);
         }
     });
 
     // Load existing notes from the server
     async function loadNotes() {
-        const notesContainer = document.getElementById("notesContainer");
-
         try {
             const response = await fetch("/.netlify/functions/getNotes");
 
             if (!response.ok) {
-                throw new Error(`Failed to load notes: HTTP ${response.status}`);
+                throw new Error(`Failed to fetch notes: HTTP ${response.status}`);
             }
 
             const notes = await response.json();
-
-            if (!Array.isArray(notes)) {
-                throw new Error("Invalid notes data received.");
-            }
+            const notesContainer = document.getElementById("notesContainer");
 
             // Clear existing notes
             notesContainer.innerHTML = "";
@@ -106,10 +162,8 @@
                 notesContainer.appendChild(noteElement);
             });
         } catch (error) {
-            console.error("Error loading notes:", error);
-            notesContainer.innerHTML = `
-                <p class="error">Failed to load notes. Please try again later.</p>
-            `;
+            console.error(error);
+            displayError(`Error loading notes: ${error.message}`);
         }
     }
 
